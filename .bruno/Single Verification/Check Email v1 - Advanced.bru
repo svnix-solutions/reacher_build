@@ -1,0 +1,52 @@
+meta {
+  name: Check Email v1 - Advanced
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/check_email
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "to_email": "someone@yahoo.com",
+    "from_email": "verify@example.com",
+    "hello_name": "mail.example.com",
+    "smtp_port": 25,
+    "gmail_verif_method": "Smtp",
+    "hotmailb2b_verif_method": "Smtp",
+    "hotmailb2c_verif_method": "Headless",
+    "yahoo_verif_method": "Headless",
+    "check_gravatar": true,
+    "proxy": {
+      "host": "my-proxy.io",
+      "port": 1080,
+      "username": "proxy-user",
+      "password": "proxy-pass"
+    }
+  }
+}
+
+docs {
+  # POST /v1/check_email — all optional fields
+
+  Same endpoint as *Simple*, showing every optional parameter.
+
+  | Field | Notes |
+  | ----- | ----- |
+  | `from_email` | SMTP `MAIL FROM` address. Overrides `RCH__FROM_EMAIL`. |
+  | `hello_name` | SMTP `EHLO` hostname. Overrides `RCH__HELLO_NAME`. |
+  | `smtp_port` | Defaults to 25; 465/587/2525 also seen. |
+  | `gmail_verif_method` | `Smtp`. |
+  | `hotmailb2b_verif_method` | `Smtp`. |
+  | `hotmailb2c_verif_method` | `Smtp` or `Headless`. |
+  | `yahoo_verif_method` | `Api`, `Headless`, or `Smtp`. |
+  | `check_gravatar` | Look up a Gravatar for the address. |
+  | `proxy` | Per-request SOCKS5 proxy (`host`+`port` required; `username`/`password` optional). |
+
+  Remove the `proxy` block if you are not routing SMTP through a proxy.
+  Output shape is identical to the *Simple* request.
+}

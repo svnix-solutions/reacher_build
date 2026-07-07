@@ -1,0 +1,66 @@
+meta {
+  name: Get Job Results
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v1/bulk/{{jobId}}/results?limit=50&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 50
+  offset: 0
+}
+
+docs {
+  # GET /v1/bulk/{job_id}/results
+
+  Fetch the results of a completed bulk job, paginated via `limit` (default 50)
+  and `offset`. Returns an error if the job is still running — check
+  **Get Job Progress** first.
+
+  ## Query params
+  | Param | Default | Notes |
+  | ----- | ------- | ----- |
+  | `limit` | 50 | Number of results to return. |
+  | `offset` | 0 | Results to skip (for paging). |
+
+  ## Example response — 200
+  ```json
+  {
+    "results": [
+      {
+        "input": "someone@gmail.com",
+        "is_reachable": "safe",
+        "misc": { "is_disposable": false, "is_role_account": false, "is_b2c": true },
+        "mx": { "accepts_mail": true, "records": ["gmail-smtp-in.l.google.com."] },
+        "smtp": {
+          "can_connect_smtp": true,
+          "has_full_inbox": false,
+          "is_catch_all": false,
+          "is_deliverable": true,
+          "is_disabled": false
+        },
+        "syntax": { "domain": "gmail.com", "is_valid_syntax": true, "username": "someone" }
+      },
+      {
+        "input": "invalid@nonexistent-domain-xyz.com",
+        "is_reachable": "invalid",
+        "misc": { "is_disposable": false, "is_role_account": false, "is_b2c": false },
+        "mx": { "accepts_mail": false, "records": [] },
+        "smtp": {
+          "can_connect_smtp": false,
+          "has_full_inbox": false,
+          "is_catch_all": false,
+          "is_deliverable": false,
+          "is_disabled": false
+        },
+        "syntax": { "domain": "nonexistent-domain-xyz.com", "is_valid_syntax": true, "username": "invalid" }
+      }
+    ]
+  }
+  ```
+}

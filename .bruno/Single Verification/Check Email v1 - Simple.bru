@@ -1,0 +1,62 @@
+meta {
+  name: Check Email v1 - Simple
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/v1/check_email
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "to_email": "someone@gmail.com"
+  }
+}
+
+docs {
+  # POST /v1/check_email
+
+  Comprehensive verification of a single email address. Queued and processed
+  according to the backend's throttle/concurrency settings. Only `to_email` is
+  required. This supersedes `/v0/check_email`.
+
+  ## Example request
+  ```json
+  {
+    "to_email": "someone@gmail.com"
+  }
+  ```
+
+  ## Example response — 200
+  ```json
+  {
+    "input": "someone@gmail.com",
+    "is_reachable": "safe",
+    "misc": {
+      "is_disposable": false,
+      "is_role_account": false,
+      "is_b2c": true,
+      "gravatar_url": null
+    },
+    "mx": {
+      "accepts_mail": true,
+      "records": ["gmail-smtp-in.l.google.com."]
+    },
+    "smtp": {
+      "can_connect_smtp": true,
+      "has_full_inbox": false,
+      "is_catch_all": false,
+      "is_deliverable": true,
+      "is_disabled": false
+    },
+    "syntax": {
+      "domain": "gmail.com",
+      "is_valid_syntax": true,
+      "username": "someone"
+    }
+  }
+  ```
+}

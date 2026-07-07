@@ -1,0 +1,29 @@
+meta {
+  name: Check Email v0 (deprecated)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/v0/check_email
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "to_email": "someone@gmail.com"
+  }
+}
+
+docs {
+  # POST /v0/check_email — deprecated
+
+  **Prefer `/v1/check_email`.** Same input and output, but this endpoint runs
+  the verification *immediately*, ignoring the backend's throttle and
+  concurrency settings — so calling it too often can hurt your IP reputation.
+  It is never rate-limited.
+
+  Accepts the same body and returns the same `CheckEmailOutput` as
+  `/v1/check_email` (see the *Simple* request for an example response).
+}

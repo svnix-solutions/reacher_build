@@ -1,0 +1,40 @@
+meta {
+  name: Get Job Progress
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/v1/bulk/{{jobId}}
+  body: none
+  auth: none
+}
+
+docs {
+  # GET /v1/bulk/{job_id}
+
+  Poll the progress of a bulk job. `{{jobId}}` is set automatically by the
+  **Create Bulk Job** post-response script (or edit it in the environment).
+  Query this until `job_status` is `Completed` before fetching results.
+
+  ## Example response — 200
+  ```json
+  {
+    "job_id": 1,
+    "created_at": "2026-07-07T10:00:00.000Z",
+    "finished_at": "2026-07-07T10:01:30.000Z",
+    "total_records": 3,
+    "total_processed": 3,
+    "summary": {
+      "total_safe": 1,
+      "total_invalid": 1,
+      "total_risky": 0,
+      "total_unknown": 1
+    },
+    "job_status": "Completed"
+  }
+  ```
+
+  While running, `finished_at` is absent, `total_processed` < `total_records`,
+  and `job_status` is `Running`.
+}

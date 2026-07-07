@@ -1,0 +1,34 @@
+headers {
+  x-reacher-secret: {{reacherSecret}}
+}
+
+docs {
+  # Reacher Email Verification API
+
+  Collection for the self-hosted Reacher backend deployed by this stack
+  (`compose.yaml`). Base URL and secret come from the **Local** environment —
+  select it (top-right) before sending requests.
+
+  ## Auth
+  The self-hosted backend authenticates with the **`x-reacher-secret`** header,
+  set to whatever you configured as `REACHER_HEADER_SECRET`. It is applied at
+  the collection level (see the *Headers* tab here) so every request inherits
+  it. Set `reacherSecret` in the environment. If the backend runs with no
+  secret configured, the empty header is ignored. (Note: the public SaaS at
+  api.reacher.email uses an `Authorization` API key instead — not this.)
+
+  ## Endpoints
+  - `GET  /version`                    — health / version (no auth)
+  - `POST /v0/check_email`             — single, immediate verification (deprecated)
+  - `POST /v1/check_email`             — single, queued verification
+  - `POST /v1/bulk`                    — enqueue a batch
+  - `GET  /v1/bulk/{job_id}`           — batch progress
+  - `GET  /v1/bulk/{job_id}/results`   — batch results
+
+  ## Bulk flow
+  Run **Create Bulk Job** first — its post-response script saves the returned
+  `job_id` into the `jobId` environment variable, so **Get Job Progress** and
+  **Get Job Results** work without editing anything.
+
+  `is_reachable` is one of `safe`, `risky`, `invalid`, `unknown`.
+}

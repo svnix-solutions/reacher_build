@@ -27,6 +27,14 @@ can run your own build compiled from the source repo
 
 Full API: [Reacher OpenAPI](https://docs.reacher.email/advanced/openapi).
 
+### Bruno collection
+
+A ready-to-use [Bruno](https://www.usebruno.com) collection lives in
+[`.bruno/`](./.bruno) covering every endpoint with request + response examples.
+Open the folder in Bruno, select the **Local** environment, and set `baseUrl` /
+`reacherSecret`. **Create Bulk Job** saves the returned `job_id` into the
+environment so the progress/results requests chain automatically.
+
 ## ⚠️ Outbound port 25
 
 SMTP verification connects to remote mail servers on **TCP port 25**. Most cloud

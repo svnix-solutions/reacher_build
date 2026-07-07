@@ -1,0 +1,58 @@
+meta {
+  name: Create Bulk Job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/v1/bulk
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "input": [
+      "someone@gmail.com",
+      "invalid@nonexistent-domain-xyz.com",
+      "postmaster@example.com"
+    ]
+  }
+}
+
+script:post-response {
+  // Chain: save the returned job_id so the progress/results requests just work.
+  const body = res.getBody();
+  if (res.getStatus() === 200 && body && body.job_id !== undefined) {
+    bru.setEnvVar("jobId", body.job_id);
+    console.log("Saved jobId =", body.job_id);
+  }
+}
+
+docs {
+  # POST /v1/bulk
+
+  Enqueue a batch of emails for verification. Requires the worker
+  (`RCH__WORKER__ENABLE=true`, set in this stack) and Postgres storage. Results
+  are persisted and fetched later via the results endpoint.
+
+  The post-response script stores `job_id` into the `jobId` environment
+  variable, so **Get Job Progress** and **Get Job Results** need no edits.
+
+  ## Example request
+  ```json
+  {
+    "input": ["someone@gmail.com", "postmaster@example.com"]
+  }
+  ```
+
+  ## Example response — 200
+  ```json
+  {
+    "job_id": 1
+  }
+  ```
+
+  See **Create Bulk Job with Webhook** for pushing each result to a URL as it
+  completes.
+}

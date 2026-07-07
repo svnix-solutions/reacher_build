@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Reacher Email Verification",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

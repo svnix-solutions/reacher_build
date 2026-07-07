@@ -1,0 +1,30 @@
+meta {
+  name: Health - Get Version
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/version
+  body: none
+  auth: none
+}
+
+headers {
+  ~x-reacher-secret: {{reacherSecret}}
+}
+
+docs {
+  # GET /version
+
+  Unauthenticated health/version endpoint. Used by the container healthcheck.
+  The `x-reacher-secret` header inherited from the collection is disabled here
+  since no auth is required.
+
+  ## Example response — 200
+  ```json
+  {
+    "version": "0.11.0"
+  }
+  ```
+}

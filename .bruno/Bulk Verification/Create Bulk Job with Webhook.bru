@@ -1,0 +1,44 @@
+meta {
+  name: Create Bulk Job with Webhook
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/bulk
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "input": [
+      "someone@gmail.com",
+      "postmaster@example.com"
+    ],
+    "webhook": {
+      "on_each_email": {
+        "url": "https://example.com/reacher-webhook",
+        "extra": {
+          "tenant_id": "acme-corp"
+        }
+      }
+    }
+  }
+}
+
+docs {
+  # POST /v1/bulk — with webhook
+
+  Same as **Create Bulk Job**, plus a `webhook.on_each_email` config. Reacher
+  sends a `POST` to `url` for every email as it finishes, with the
+  `CheckEmailOutput` as the body. The optional `extra` object is echoed back —
+  useful for correlating results in a multi-tenant system.
+
+  ## Example response — 200
+  ```json
+  {
+    "job_id": 2
+  }
+  ```
+}
