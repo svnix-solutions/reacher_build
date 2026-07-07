@@ -1,0 +1,131 @@
+# =============================================================================
+# Komodo Resource Sync — Reacher Email Verification (Build + Stack + Procedure)
+# Docs: https://komo.do/docs/sync-resources
+#       https://komo.do/docs/build/builders  &  https://komo.do/docs/stacks
+#
+# Point a Komodo "Resource Sync" at THIS repo (email_verify_build) with resource
+# path `komodo/resources.toml` (or the `komodo` folder) and Execute it.
+#
+# Image flow:
+#   [[build]] reacher-backend  ──build & push──▶ <registry>/<owner>/reacher-backend:<ver>
+#       (built from the SEPARATE ../check-if-email-exists source repo)
+#   [[stack]] reacher          ──pull & run──▶   compose.yaml (image: ${REACHER_IMAGE})
+#   [[procedure]] reacher-release  chains: build → deploy stack
+#
+# Prefer the public image? Skip the [[build]] entirely: leave REACHER_IMAGE at
+# its default (reacherhq/backend:beta) in the stack environment below and just
+# run/deploy the [[stack]].
+#
+# Replace the PLACEHOLDERS:
+#   <builder>       : a Komodo Builder resource (Server builder or AWS builder)
+#   <server>        : the Komodo Server (Periphery) the Stack runs on
+#   <git-account>   : Komodo git account alias with access to the repos
+#   <registry-acct> : Komodo registry account alias used to push/pull the image
+# =============================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BUILD — compiles the Reacher backend image from the check-if-email-exists
+# source repo and pushes it to a registry. Optional; only needed to run your
+# own fork/build instead of the public reacherhq/backend image.
+# ─────────────────────────────────────────────────────────────────────────────
+[[build]]
+name = "reacher-backend"
+description = "Build the Reacher email-verification backend image from source"
+tags = ["email", "reacher", "verification"]
+
+[build.config]
+builder = "<builder>"
+
+# Source of the build context — the SEPARATE Reacher (fork) repo, not this one:
+git_provider = "github.com"
+git_account = "<git-account>"
+repo = "svnix-solutions/check-if-email-exists"
+branch = "main"
+build_path = "."
+dockerfile_path = "backend/Dockerfile"
+
+# Where to push the built image. `domain` + `account` form the image prefix,
+# e.g. ghcr.io/<registry-acct>/reacher-backend
+image_registry.domain = "ghcr.io"
+image_registry.account = "<registry-acct>"
+# image_registry.organization = ""   # set if pushing under an org namespace
+
+# Bump this to cut a new image version/tag:
+version = "0.1.0"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STACK — pulls the image referenced by ${REACHER_IMAGE} and runs compose.
+# No build at deploy time.
+# ─────────────────────────────────────────────────────────────────────────────
+[[stack]]
+name = "reacher"
+description = "Reacher email verification — RabbitMQ + Postgres + backend/worker"
+tags = ["email", "reacher", "verification"]
+
+[stack.config]
+server = "<server>"
+
+# Compose file lives in THIS repo (email_verify_build):
+git_provider = "github.com"
+git_account = "<git-account>"
+repo = "svnix-solutions/email_verify_build"
+branch = "main"
+file_paths = ["compose.yaml"]
+project_name = "reacher"
+
+# Do NOT build on deploy — just pull the image referenced in compose.yaml:
+run_build = false
+auto_pull = true
+
+# Registry credentials Komodo uses to pull the (possibly private) image.
+# Only needed when REACHER_IMAGE points at a private registry build.
+registry_provider = "ghcr.io"
+registry_account = "<registry-acct>"
+
+# Redeploy triggers:
+webhook_enabled = true
+poll_for_updates = true
+poll_interval = "5-min"
+auto_update = false
+
+# Injected into compose at deploy. Set REACHER_IMAGE to your build's pushed tag
+# to run your own image, or leave the public default. Fill secrets in the UI
+# (keep them out of git). Generate: REACHER_HEADER_SECRET=openssl rand -hex 32
+environment = """
+REACHER_IMAGE=reacherhq/backend:beta
+REACHER_HELLO_NAME=mail.example.com
+REACHER_FROM_EMAIL=verify@example.com
+REACHER_HEADER_SECRET=
+REACHER_REPLICAS=1
+REACHER_CONCURRENCY=5
+RABBITMQ_USER=guest
+RABBITMQ_PASS=
+POSTGRES_USER=reacher
+POSTGRES_PASSWORD=
+POSTGRES_DB=reacher_db
+CLOUDFLARE_TUNNEL_NETWORK=cloudflared
+"""
+environment_is_secret = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROCEDURE — one-click "release": build the image, then redeploy the stack.
+# Use this (instead of deploying the stack directly) when running your own build.
+# ─────────────────────────────────────────────────────────────────────────────
+[[procedure]]
+name = "reacher-release"
+description = "Build the Reacher backend image, then deploy the Reacher stack"
+tags = ["email", "reacher", "verification"]
+
+[[procedure.config.stage]]
+name = "Build image"
+enabled = true
+executions = [
+  { execution.type = "RunBuild", execution.params.build = "reacher-backend", enabled = true },
+]
+
+[[procedure.config.stage]]
+name = "Deploy stack"
+enabled = true
+executions = [
+  { execution.type = "DeployStack", execution.params.stack = "reacher", enabled = true },
+]

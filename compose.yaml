@@ -1,0 +1,165 @@
+##############################################################
+# 🦎 KOMODO STACK — REACHER EMAIL VERIFICATION (check-if-email-exists) 🦎 #
+##############################################################
+
+## This compose file deploys a production, queue-based email-verification
+## stack built on Reacher (github.com/reacherhq/check-if-email-exists):
+##
+##   1. rabbitmq  — job queue that feeds the workers (bulk /v1 endpoints).
+##   2. postgres  — stores bulk jobs + per-email verification results.
+##   3. reacher   — the Reacher backend: an HTTP API (warp) AND a worker that
+##                  consumes the queue. Serves /v0, /v1 and /version.
+##
+## The single-shot `POST /v0/check_email` endpoint runs verifications
+## immediately (no queue). The `/v1/bulk` endpoints enqueue work onto RabbitMQ
+## which the worker(s) drain, persisting results into Postgres.
+##
+## ⚠️  Outbound TCP port 25 must be open on the host for SMTP verification to
+##     work. Most cloud providers block it by default — use a SOCKS5 proxy
+##     (RCH__PROXY__*) if so. See README.md.
+##
+## How to use:
+##   1. cp .env.example .env  and edit the values (secrets, hello_name…).
+##   2. Expose via Cloudflare Tunnel: the reacher service joins the shared
+##      `cloudflared` network (create it once: `docker network create cloudflared`)
+##      and the tunnel maps a public hostname to http://<reacher container>:8080.
+##   3. Deploy locally (`docker compose up -d`) or via a Komodo Stack.
+
+name: ${COMPOSE_PROJECT_NAME:-reacher}
+
+services:
+  ##
+  # RabbitMQ — queue that decouples the HTTP API from the SMTP workers.
+  # Management UI on :15672 (guest/guest by default — change it).
+  ##
+  rabbitmq:
+    image: rabbitmq:${RABBITMQ_IMAGE_TAG:-4.0-management}
+    container_name: ${COMPOSE_PROJECT_NAME:-reacher}-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      # Management UI. The AMQP port (5672) stays internal to the stack network.
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - reacher
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  ##
+  # Postgres — persistent storage for bulk jobs and verification results.
+  ##
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG:-16-alpine}
+    container_name: ${COMPOSE_PROJECT_NAME:-reacher}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reacher}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reacher}
+      POSTGRES_DB: ${POSTGRES_DB:-reacher_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reacher
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reacher} -d ${POSTGRES_DB:-reacher_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  ##
+  # Reacher backend — HTTP API + queue worker in one process.
+  #   • Pull the public image (default) or set REACHER_IMAGE to a build you
+  #     pushed from ../check-if-email-exists (see komodo/resources.toml).
+  #   • hello_name / from_email materially affect deliverability results — set
+  #     them to a domain whose reverse-DNS (PTR) points back at this host's IP.
+  ##
+  reacher:
+    image: ${REACHER_IMAGE:-reacherhq/backend:beta}
+    container_name: ${COMPOSE_PROJECT_NAME:-reacher}-backend
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      # Direct HTTP access. If you scale this service (REACHER_REPLICAS > 1)
+      # remove this mapping and reach the API through the proxy network instead
+      # — a published host port cannot be shared by multiple replicas.
+      - "${REACHER_HTTP_PORT:-8080}:8080"
+    environment:
+      RUST_LOG: ${RUST_LOG:-reacher=info}
+      RCH__BACKEND_NAME: ${REACHER_BACKEND_NAME:-reacher-backend}
+      RCH__HTTP_HOST: "0.0.0.0"
+      RCH__HTTP_PORT: "8080"
+
+      # EHLO/HELO name + MAIL FROM used in the SMTP conversation. Match these to
+      # a domain whose PTR record resolves to this server for best results.
+      RCH__HELLO_NAME: ${REACHER_HELLO_NAME:-localhost}
+      RCH__FROM_EMAIL: ${REACHER_FROM_EMAIL:-hello@localhost}
+
+      # Shared secret required in the `x-reacher-secret` header of every
+      # request. Leave blank to disable auth (NOT recommended if exposed).
+      RCH__HEADER_SECRET: ${REACHER_HEADER_SECRET:-}
+
+      # Enable the queue worker so /v1/bulk jobs get drained.
+      RCH__WORKER__ENABLE: "true"
+      RCH__WORKER__RABBITMQ__URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
+      RCH__WORKER__RABBITMQ__CONCURRENCY: ${REACHER_CONCURRENCY:-5}
+
+      # Persist bulk results to Postgres.
+      RCH__STORAGE__POSTGRES__DB_URL: postgres://${POSTGRES_USER:-reacher}:${POSTGRES_PASSWORD:-reacher}@postgres:5432/${POSTGRES_DB:-reacher_db}
+
+      # Per-worker throttle (protects your IPs from being blocked). These apply
+      # to /v1/* only; /v0/check_email is never throttled.
+      RCH__THROTTLE__MAX_REQUESTS_PER_MINUTE: ${REACHER_MAX_RPM:-60}
+      RCH__THROTTLE__MAX_REQUESTS_PER_DAY: ${REACHER_MAX_RPD:-10000}
+
+      # Optional SOCKS5 proxy for SMTP (needed if outbound :25 is blocked).
+      # Uncomment the matching lines in .env to activate.
+      RCH__PROXY__HOST: ${REACHER_PROXY_HOST:-}
+      RCH__PROXY__PORT: ${REACHER_PROXY_PORT:-}
+      RCH__PROXY__USERNAME: ${REACHER_PROXY_USERNAME:-}
+      RCH__PROXY__PASSWORD: ${REACHER_PROXY_PASSWORD:-}
+    deploy:
+      replicas: ${REACHER_REPLICAS:-1}
+    networks:
+      - reacher
+      - tunnel
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  ##
+  # Internal stack network — rabbitmq, postgres and reacher talk over this.
+  ##
+  reacher:
+    name: ${COMPOSE_PROJECT_NAME:-reacher}_internal
+
+  ##
+  # Shared external network with the Cloudflare Tunnel connector (cloudflared).
+  # The tunnel reaches the API at http://<reacher container>:8080 over this
+  # network — no published ports or inbound firewall rules needed. Create it
+  # once (before deploying the cloudflared stack):
+  #   docker network create ${CLOUDFLARE_TUNNEL_NETWORK:-cloudflared}
+  ##
+  tunnel:
+    name: ${CLOUDFLARE_TUNNEL_NETWORK:-cloudflared}
+    external: true
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
