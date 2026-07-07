@@ -83,32 +83,18 @@ curl http://localhost:8080/v1/bulk/1/results -H 'x-reacher-secret: <your-secret>
 
 ## Deploy with Komodo
 
-This repo is a [Komodo](https://komo.do) **Resource Sync**. The definitions live
-in [`komodo/resources.toml`](./komodo/resources.toml):
+This repo holds only the deployable stack (`compose.yaml` + `.env.example`).
+Komodo Resource Sync definitions (the `[[stack]]` / `[[build]]` / `[[procedure]]`
+TOML) live in our separate Komodo resources repo, not here.
 
-- **`[[stack]] reacher`** — pulls `${REACHER_IMAGE}` and runs `compose.yaml`.
-- **`[[build]] reacher-backend`** *(optional)* — builds the image from the
-  `check-if-email-exists` source repo and pushes it to your registry.
-- **`[[procedure]] reacher-release`** — build → deploy in one click.
+Point a Komodo **Stack** at this repo with `file_paths = ["compose.yaml"]`, set
+`run_build = false` so it just pulls `${REACHER_IMAGE}` (default
+`reacherhq/backend:beta`), and set the secrets — `REACHER_HEADER_SECRET`,
+`RABBITMQ_PASS`, `POSTGRES_PASSWORD` — in the stack **Environment** in the UI.
 
-### Fastest path — public image, no build
-
-1. In Komodo, create a **Resource Sync** pointing at this repo, path
-   `komodo/resources.toml`.
-2. Edit the `[[stack]]` placeholders (`<server>`, `<git-account>`) and leave
-   `REACHER_IMAGE=reacherhq/backend:beta`. You can ignore/remove the `[[build]]`
-   and `[[procedure]]` blocks.
-3. Execute the sync, then **Deploy** the `reacher` stack. Set secrets
-   (`REACHER_HEADER_SECRET`, `RABBITMQ_PASS`, `POSTGRES_PASSWORD`) in the UI.
-
-### Run your own build from source
-
-1. Fill the `[[build]]` placeholders (`<builder>`, `<registry-acct>`,
-   `<git-account>`). It builds from `svnix-solutions/check-if-email-exists`
-   using `backend/Dockerfile`.
-2. Set `REACHER_IMAGE` in the stack environment to your pushed tag
-   (e.g. `ghcr.io/<registry-acct>/reacher-backend:latest`).
-3. Run the **`reacher-release`** procedure to build then deploy.
+To run your own image instead of the public one, build the backend from the
+`svnix-solutions/check-if-email-exists` source repo (`backend/Dockerfile`) in a
+separate Komodo Build and set `REACHER_IMAGE` to your pushed tag.
 
 ## Configuration
 
