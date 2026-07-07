@@ -124,12 +124,10 @@ services:
       RCH__THROTTLE__MAX_REQUESTS_PER_MINUTE: ${REACHER_MAX_RPM:-60}
       RCH__THROTTLE__MAX_REQUESTS_PER_DAY: ${REACHER_MAX_RPD:-10000}
 
-      # Optional SOCKS5 proxy for SMTP (needed if outbound :25 is blocked).
-      # Uncomment the matching lines in .env to activate.
-      RCH__PROXY__HOST: ${REACHER_PROXY_HOST:-}
-      RCH__PROXY__PORT: ${REACHER_PROXY_PORT:-}
-      RCH__PROXY__USERNAME: ${REACHER_PROXY_USERNAME:-}
-      RCH__PROXY__PASSWORD: ${REACHER_PROXY_PASSWORD:-}
+      # NOTE: SOCKS5 proxy settings are intentionally NOT set here. Reacher builds
+      # its [proxy] config from any RCH__PROXY__* variable it sees, and an empty
+      # RCH__PROXY__PORT fails to parse as an integer. To route SMTP through a
+      # proxy, enable the optional overlay: compose.proxy.yaml (see README).
     deploy:
       replicas: ${REACHER_REPLICAS:-1}
     networks:

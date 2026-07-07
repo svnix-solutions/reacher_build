@@ -1,0 +1,30 @@
+# ============================================================================
+# Optional SOCKS5 proxy overlay for SMTP verification.
+#
+# Reacher builds its [proxy] config from any RCH__PROXY__* variable it sees, so
+# these are kept OUT of the base compose.yaml — an empty RCH__PROXY__PORT would
+# fail to parse as an integer ("invalid type: string \"\", expected an integer
+# for key `proxy.port`"). Enable this overlay ONLY when you actually route SMTP
+# through a proxy (e.g. outbound :25 is blocked on the host).
+#
+# Local Docker:
+#   docker compose -f compose.yaml -f compose.proxy.yaml up -d
+#
+# Komodo Stack:
+#   add both files, in order, to file_paths:
+#   file_paths = ["compose.yaml", "compose.proxy.yaml"]
+#
+# REACHER_PROXY_HOST / REACHER_PROXY_PORT are required here — the `:?` guard
+# makes compose fail fast with a clear message if they're unset.
+# ============================================================================
+
+services:
+  reacher:
+    environment:
+      RCH__PROXY__HOST: ${REACHER_PROXY_HOST:?REACHER_PROXY_HOST is required when using compose.proxy.yaml}
+      RCH__PROXY__PORT: ${REACHER_PROXY_PORT:?REACHER_PROXY_PORT is required when using compose.proxy.yaml}
+      # Uncomment BOTH lines below only if your proxy requires authentication.
+      # Leave them out entirely for an unauthenticated proxy — an empty string
+      # would be sent as a real (blank) username/password.
+      # RCH__PROXY__USERNAME: ${REACHER_PROXY_USERNAME:?set REACHER_PROXY_USERNAME or comment this line out}
+      # RCH__PROXY__PASSWORD: ${REACHER_PROXY_PASSWORD:?set REACHER_PROXY_PASSWORD or comment this line out}

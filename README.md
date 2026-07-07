@@ -34,8 +34,9 @@ providers (AWS, GCP, Azure, DigitalOcean, …) block outbound `:25` by default. 
 so, verifications return `unknown`. Options:
 
 - Run on a host/provider where outbound `:25` is open, **or**
-- Route SMTP through a SOCKS5 proxy — set `REACHER_PROXY_*` in `.env`
-  (see [proxy25.com](https://proxy25.com)).
+- Route SMTP through a SOCKS5 proxy — set `REACHER_PROXY_HOST`/`REACHER_PROXY_PORT`
+  in `.env` and enable the `compose.proxy.yaml` overlay (see
+  [SOCKS5 proxy](#socks5-proxy-optional); [proxy25.com](https://proxy25.com)).
 
 Also set **`REACHER_HELLO_NAME`** / **`REACHER_FROM_EMAIL`** to a domain whose
 reverse-DNS (PTR) points back at this host's public IP — it materially improves
@@ -111,7 +112,32 @@ All configuration is via environment variables in `.env` (mapped to Reacher's
 | `REACHER_CONCURRENCY`    | `5`                    | Emails verified in parallel per instance.                  |
 | `REACHER_REPLICAS`       | `1`                    | Scale workers. If > 1, drop the host port (use the tunnel). |
 | `REACHER_MAX_RPM`/`_RPD` | `60` / `10000`         | Per-worker throttle on `/v1/*`.                            |
-| `REACHER_PROXY_*`        | *(empty)*              | SOCKS5 proxy for SMTP when `:25` is blocked.               |
+| `REACHER_PROXY_*`        | *(empty)*              | SOCKS5 proxy for SMTP — only via the `compose.proxy.yaml` overlay. |
+
+### SOCKS5 proxy (optional)
+
+Reacher builds its `[proxy]` config from any `RCH__PROXY__*` env var it sees, and
+an empty `RCH__PROXY__PORT` crashes on startup:
+
+```
+Error: invalid type: string "", expected an integer for key `proxy.port`
+```
+
+So the proxy settings live in a separate overlay, **`compose.proxy.yaml`**, that
+is applied only when you actually use a proxy — the base stack never sets a proxy
+section.
+
+```bash
+# .env: set REACHER_PROXY_HOST and REACHER_PROXY_PORT (required)
+docker compose -f compose.yaml -f compose.proxy.yaml up -d
+```
+
+In Komodo, add both files to the Stack's `file_paths`, in order:
+`file_paths = ["compose.yaml", "compose.proxy.yaml"]`.
+
+For an **authenticated** proxy, also set `REACHER_PROXY_USERNAME`/`_PASSWORD` and
+uncomment their two lines in `compose.proxy.yaml`. Leave them commented for an
+unauthenticated proxy — an empty string would be sent as a real blank credential.
 
 Reacher exposes far more knobs (per-provider verification method overrides,
 multiple named proxies, Sentry, headless Chrome for Yahoo/Hotmail B2C) via its
