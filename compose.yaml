@@ -77,13 +77,13 @@ services:
 
   ##
   # Reacher backend — HTTP API + queue worker in one process.
-  #   • Pull the public image (default) or set REACHER_IMAGE to a build you
-  #     pushed from ../check-if-email-exists (see komodo/resources.toml).
+  #   • Pull the public image (default) or set REACHER_IMAGE to your own build
+  #     compiled from svnix-solutions/check-if-email-exists.
   #   • hello_name / from_email materially affect deliverability results — set
   #     them to a domain whose reverse-DNS (PTR) points back at this host's IP.
   ##
   reacher:
-    image: ${REACHER_IMAGE:-reacherhq/backend:beta}
+    image: ${REACHER_IMAGE:-reacherhq/backend:latest}
     container_name: ${COMPOSE_PROJECT_NAME:-reacher}-backend
     restart: unless-stopped
     depends_on:
@@ -93,8 +93,8 @@ services:
         condition: service_healthy
     ports:
       # Direct HTTP access. If you scale this service (REACHER_REPLICAS > 1)
-      # remove this mapping and reach the API through the proxy network instead
-      # — a published host port cannot be shared by multiple replicas.
+      # remove this mapping and reach the API through the cloudflared network
+      # instead — a published host port cannot be shared by multiple replicas.
       - "${REACHER_HTTP_PORT:-8080}:8080"
     environment:
       RUST_LOG: ${RUST_LOG:-reacher=info}

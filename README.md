@@ -1,14 +1,15 @@
 # 🦎 Reacher Email Verification — Komodo Stack
 
 A production, queue-based **email verification** stack built on
-[Reacher / `check-if-email-exists`](https://github.com/reacherhq/check-if-email-exists).
+[Reacher / `check-if-email-exists`](https://github.com/svnix-solutions/check-if-email-exists)
+(our fork of [reacherhq/check-if-email-exists](https://github.com/reacherhq/check-if-email-exists)).
 Checks whether an email address exists **without sending any email** — syntax,
 MX/DNS, disposable-address, SMTP reachability, catch-all, role account and more.
 
-The image is built from the sibling source repo at
-[`../check-if-email-exists`](../check-if-email-exists)
-(fork: `svnix-solutions/check-if-email-exists`), or you can run the public
-`reacherhq/backend` image directly.
+By default the stack runs the public `reacherhq/backend` image. Optionally, you
+can run your own build compiled from the source repo
+[`svnix-solutions/check-if-email-exists`](https://github.com/svnix-solutions/check-if-email-exists)
+— see [Deploy with Komodo](#deploy-with-komodo).
 
 ## What's in the stack
 
@@ -16,7 +17,7 @@ The image is built from the sibling source repo at
 | ---------- | ------------------------- | ----------------------------------------------------------------- |
 | `rabbitmq` | `rabbitmq:4.0-management` | Job queue feeding the workers (bulk `/v1` endpoints). UI on `15672`. |
 | `postgres` | `postgres:16-alpine`      | Stores bulk jobs and per-email verification results.              |
-| `reacher`  | `reacherhq/backend:beta`  | Reacher backend — HTTP API **and** queue worker. Serves `:8080`.  |
+| `reacher`  | `reacherhq/backend:latest` | Reacher backend — HTTP API **and** queue worker. Serves `:8080`. |
 
 - **`POST /v0/check_email`** — single, immediate verification (no queue, not throttled).
 - **`POST /v1/check_email`** — single verification via the throttled `/v1` path.
@@ -89,7 +90,7 @@ TOML) live in our separate Komodo resources repo, not here.
 
 Point a Komodo **Stack** at this repo with `file_paths = ["compose.yaml"]`, set
 `run_build = false` so it just pulls `${REACHER_IMAGE}` (default
-`reacherhq/backend:beta`), and set the secrets — `REACHER_HEADER_SECRET`,
+`reacherhq/backend:latest`), and set the secrets — `REACHER_HEADER_SECRET`,
 `RABBITMQ_PASS`, `POSTGRES_PASSWORD` — in the stack **Environment** in the UI.
 
 To run your own image instead of the public one, build the backend from the
@@ -103,18 +104,18 @@ All configuration is via environment variables in `.env` (mapped to Reacher's
 
 | `.env` variable          | Default                | Notes                                                       |
 | ------------------------ | ---------------------- | ----------------------------------------------------------- |
-| `REACHER_IMAGE`          | `reacherhq/backend:beta` | Public image, or your own build.                          |
+| `REACHER_IMAGE`          | `reacherhq/backend:latest` | Public image, or your own build.                        |
 | `REACHER_HEADER_SECRET`  | *(empty)*              | `x-reacher-secret` value. Set it if the API is exposed.     |
 | `REACHER_HELLO_NAME`     | `mail.example.com`     | SMTP EHLO name — match host PTR.                            |
 | `REACHER_FROM_EMAIL`     | `verify@example.com`   | SMTP `MAIL FROM`.                                           |
 | `REACHER_CONCURRENCY`    | `5`                    | Emails verified in parallel per instance.                  |
-| `REACHER_REPLICAS`       | `1`                    | Scale workers. If > 1, drop the host port (use the proxy). |
+| `REACHER_REPLICAS`       | `1`                    | Scale workers. If > 1, drop the host port (use the tunnel). |
 | `REACHER_MAX_RPM`/`_RPD` | `60` / `10000`         | Per-worker throttle on `/v1/*`.                            |
 | `REACHER_PROXY_*`        | *(empty)*              | SOCKS5 proxy for SMTP when `:25` is blocked.               |
 
 Reacher exposes far more knobs (per-provider verification method overrides,
 multiple named proxies, Sentry, headless Chrome for Yahoo/Hotmail B2C) via its
-[`backend_config.toml`](../check-if-email-exists/backend/backend_config.toml).
+[`backend_config.toml`](https://github.com/svnix-solutions/check-if-email-exists/blob/main/backend/backend_config.toml).
 The Docker image bundles Chrome + chromedriver for headless verification.
 
 ## Exposing through Cloudflare Tunnel
@@ -164,4 +165,4 @@ avoid your IPs being blocked by mail providers.
   `cloudflared` stack) before deploying, or point `CLOUDFLARE_TUNNEL_NETWORK` at
   your existing tunnel network.
 - Reacher is dual-licensed (AGPL-3.0 / commercial). Review the
-  [license terms](../check-if-email-exists/LICENSE.md) before commercial use.
+  [license terms](https://github.com/svnix-solutions/check-if-email-exists/blob/main/LICENSE.md) before commercial use.
